@@ -68,3 +68,16 @@ Build a scalable RESTful API around openSenseMap but customized to help beekeepe
 - 5c21ff8f919bf8001adf2488
 - 5ade1acf223bd80019a1011c
 
+### Phase 2
+Created a simple Python script to print the version of the project. This is a common practice in software projects to have a versioning system in place.
+
+The script is containerized using a Dockerfile, which allows for easy deployment and scalability.
+
+To Test the script, you can build the Docker image and run the container:
+
+```bash
+# Build the Docker image
+docker build -t hivebox-version . 
+# Run the Docker container
+docker run hivebox-version
+``` 
