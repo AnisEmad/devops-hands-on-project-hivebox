@@ -1,3 +1,5 @@
-version="v0.0.1"
+"""printing the version of the app"""
 
-print(version)
+VERSION="v0.0.1"
+
+print(VERSION)
