@@ -81,3 +81,53 @@ docker build -t hivebox-version .
 # Run the Docker container
 docker run hivebox-version
 ``` 
+### Phase 3
+Roadmap Module: [Start - Laying the Base](https://devopsroadmap.io/foundations/module-03)
+
+#### 3.1 Tools
+
+- **[Hadolint](https://github.com/hadolint/hadolint)** - Dockerfile linter to enforce best practices.
+- **[Pylint](https://pypi.org/project/pylint/)** - Python code linter to enforce code quality and style.
+
+Both tools are also available as VS Code extensions for local development feedback.
+
+#### 3.2 Code
+
+The API is built using **FastAPI** and exposes two endpoints:
+
+- `GET /version` - Returns the current version of the deployed app from `print_version.py`.
+- `GET /temperature` - Fetches data from 3 senseBox stations and returns the average
+  temperature, excluding any measurements older than 1 hour.
+
+Unit tests cover both endpoints, including happy path, staleness filtering, edge cases,
+and error handling. Tests are written using `pytest` with `AsyncMock` to avoid real
+HTTP calls to the openSenseMap API.
+
+#### 3.3 Containers
+
+The app is containerized using Docker following best practices:
+
+- Base image pinned to `python:3.13-slim-bookworm` for a minimal and reproducible build.
+- Dependencies installed before copying source code to leverage Docker layer caching.
+- Container runs on port `8000` using `uvicorn`.
+
+> **Note on vulnerabilities:** A Trivy scan revealed 7 HIGH CVEs in OS-level packages
+> (`libncurses`, `libcap2`, `libsystemd`). All have no fixed version available upstream
+> as of the time of writing. None of these packages are reachable by the application.
+
+#### 3.4 Continuous Integration
+
+A GitHub Actions CI pipeline is set up with three jobs that run sequentially:
+
+1. **Lint** - Runs `pylint` on Python files and `hadolint` on the Dockerfile.
+2. **Test** - Runs `pytest` unit tests.
+3. **Build** - Builds the Docker image, starts the container, and tests the `/version` endpoint.
+
+The **OpenSSF Scorecard** workflow is also configured, running on every push to `main`
+and weekly on Mondays. Results are uploaded to the GitHub Security → Code Scanning tab.
+
+#### 3.5 Testing
+
+The CI pipeline spins up the Docker container after a successful build and calls the
+`/version` endpoint via `curl`, asserting the response matches the expected version.
+If the value does not match, the pipeline fails and the container is cleaned up automatically.
