@@ -107,13 +107,10 @@ HTTP calls to the openSenseMap API.
 
 The app is containerized using Docker following best practices:
 
-- Base image pinned to `python:3.13-slim-bookworm` for a minimal and reproducible build.
+- Base image pinned to `python:3.13-slim` for a minimal and reproducible build.
 - Dependencies installed before copying source code to leverage Docker layer caching.
 - Container runs on port `8000` using `uvicorn`.
 
-> **Note on vulnerabilities:** A Trivy scan revealed 7 HIGH CVEs in OS-level packages
-> (`libncurses`, `libcap2`, `libsystemd`). All have no fixed version available upstream
-> as of the time of writing. None of these packages are reachable by the application.
 
 #### 3.4 Continuous Integration
 
