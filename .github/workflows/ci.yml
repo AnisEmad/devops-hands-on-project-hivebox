@@ -55,13 +55,32 @@ jobs:
       - name: Run tests
         run: pytest test_main.py -v
  
-  build:
-    name: Build Docker Image
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+ build:
+   name: Build Docker Image
+   runs-on: ubuntu-latest
+   needs: test
+   steps:
+     - name: Checkout code
+       uses: actions/checkout@v4
  
-      - name: Build Docker image
-        run: docker build -t hivebox .
+     - name: Build Docker image
+       run: docker build -t hivebox .
+ 
+     - name: Start container
+       run: docker run -d -p 8000:8000 --name hivebox hivebox
+ 
+     - name: Wait for container to be ready
+       run: sleep 3
+ 
+     - name: Test /version endpoint
+       run: |
+         RESPONSE=$(curl -sf http://localhost:8000/version)
+         echo "Response: $RESPONSE"
+         if [ "$RESPONSE" != '"v0.0.1"' ]; then
+           echo "Unexpected version: $RESPONSE"
+           exit 1
+         fi
+ 
+     - name: Stop container
+       if: always()
+       run: docker stop hivebox && docker rm hivebox
