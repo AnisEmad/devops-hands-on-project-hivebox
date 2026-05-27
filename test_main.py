@@ -75,12 +75,15 @@ class TestTemperatureEndpoint:
     def test_returns_average_of_three_sensors(
         self, client  # pylint: disable=redefined-outer-name
     ):
-        """Average of 10, 20, 30 should be 20.0."""
+        """Average of 10, 20, 30 should be 20.0 and status should be Good."""
         values = ["10.0", "20.0", "30.0"]
         side_effects = [make_sensor_data(v, minutes_ago=5) for v in values]
         with patch("main.get_box_data", new=AsyncMock(side_effect=side_effects)):
             response = client.get("/temperature")
-        assert response.json() == {"temperature": 20.0}
+        
+        body = response.json()
+        assert body["temperature"] == 20.0
+        assert body["status"] == "Good"
 
     def test_returns_single_sensor_value(
         self, client  # pylint: disable=redefined-outer-name
@@ -93,7 +96,10 @@ class TestTemperatureEndpoint:
         ]
         with patch("main.get_box_data", new=AsyncMock(side_effect=data)):
             response = client.get("/temperature")
-        assert response.json() == {"temperature": 15.5}
+            
+        body = response.json()
+        assert body["temperature"] == 15.5
+        assert body["status"] == "Good"
 
     def test_sensor_title_case_insensitive(
         self, client  # pylint: disable=redefined-outer-name
@@ -106,7 +112,36 @@ class TestTemperatureEndpoint:
         ]
         with patch("main.get_box_data", new=AsyncMock(side_effect=data)):
             response = client.get("/temperature")
-        assert response.json() == {"temperature": 23.0}
+            
+        body = response.json()
+        assert body["temperature"] == 23.0
+        assert body["status"] == "Good"
+
+    # ── status boundaries ─────────────────────────────────────────────────────
+
+    def test_status_too_cold(self, client):
+        """Temperatures below 10 should return 'Too Cold'."""
+        data = make_sensor_data("9.4", minutes_ago=5)
+        with patch("main.get_box_data", new=AsyncMock(return_value=data)):
+            response = client.get("/temperature")
+        body = response.json()
+        assert body["status"] == "Too Cold"
+
+    def test_status_good_boundary(self, client):
+        """Temperatures between 10 and 36.999 should return 'Good'."""
+        data = make_sensor_data("36.5", minutes_ago=5)
+        with patch("main.get_box_data", new=AsyncMock(return_value=data)):
+            response = client.get("/temperature")
+        body = response.json()
+        assert body["status"] == "Good"
+
+    def test_status_too_hot(self, client):
+        """Temperatures 37 and above should return 'Too Hot'."""
+        data = make_sensor_data("37.1", minutes_ago=5)
+        with patch("main.get_box_data", new=AsyncMock(return_value=data)):
+            response = client.get("/temperature")
+        body = response.json()
+        assert body["status"] == "Too Hot"
 
     # ── staleness filter ──────────────────────────────────────────────────────
 
@@ -122,17 +157,12 @@ class TestTemperatureEndpoint:
         with patch("main.get_box_data", new=AsyncMock(side_effect=data)):
             response = client.get("/temperature")
         body = response.json()
-        assert isinstance(body, list) and any("error" in item for item in body)
+        assert "error" in body
 
     def test_excludes_measurement_exactly_at_one_hour_boundary(
         self, client  # pylint: disable=redefined-outer-name
     ):
-        """A reading at exactly 60 minutes old is excluded.
-
-        The production check uses ``<= timedelta(hours=1)``, so elapsed == limit
-        fails the condition and the measurement is dropped. This test documents
-        that boundary behaviour.
-        """
+        """A reading at exactly 60 minutes old is excluded."""
         data = [
             make_sensor_data("18.0", minutes_ago=60),
             make_sensor_data("18.0", minutes_ago=60),
@@ -141,7 +171,7 @@ class TestTemperatureEndpoint:
         with patch("main.get_box_data", new=AsyncMock(side_effect=data)):
             response = client.get("/temperature")
         body = response.json()
-        assert isinstance(body, list) and any("error" in item for item in body)
+        assert "error" in body
 
     def test_mixes_fresh_and_stale_sensors(
         self, client  # pylint: disable=redefined-outer-name
@@ -154,7 +184,10 @@ class TestTemperatureEndpoint:
         ]
         with patch("main.get_box_data", new=AsyncMock(side_effect=data)):
             response = client.get("/temperature")
-        assert response.json() == {"temperature": 15.0}
+        
+        body = response.json()
+        assert body["temperature"] == 15.0
+        assert body["status"] == "Good"
 
     # ── error / edge cases ────────────────────────────────────────────────────
 
@@ -166,7 +199,7 @@ class TestTemperatureEndpoint:
         with patch("main.get_box_data", new=AsyncMock(return_value=stale_data)):
             response = client.get("/temperature")
         body = response.json()
-        assert "error" in body or (isinstance(body, list) and len(body) > 0)
+        assert "error" in body
 
     def test_returns_error_when_no_temperature_sensor_found(
         self, client  # pylint: disable=redefined-outer-name
@@ -186,7 +219,7 @@ class TestTemperatureEndpoint:
         with patch("main.get_box_data", new=AsyncMock(return_value=no_temp)):
             response = client.get("/temperature")
         body = response.json()
-        assert "error" in body or (isinstance(body, list) and len(body) > 0)
+        assert "error" in body
 
     def test_handles_missing_last_measurement(
         self, client  # pylint: disable=redefined-outer-name
