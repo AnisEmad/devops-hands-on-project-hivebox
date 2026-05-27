@@ -1,12 +1,28 @@
 """FastAPI service that fetches temperature data from OpenSenseMap."""
+import os
+import sys
 from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI
 import httpx
+from dotenv import load_dotenv
+from prometheus_client import make_asgi_app
 from print_version import VERSION
+
+
+load_dotenv()
+
+print(f"--- Was .env loaded successfully? {load_dotenv()} ---")  # 👈 Add this line temporary
 
 app = FastAPI()
 
-BASE_URL = "https://api.opensensemap.org/boxes"
+metrics_app = make_asgi_app()
+
+app.mount("/metrics", metrics_app)
+
+BASE_URL = os.environ.get("BASE_URL")
+if not BASE_URL:
+    print("CRITICAL ERROR: BASEURL environment variable is not set!", file=sys.stderr)
+    sys.exit(1)
 
 async def get_box_data(sensebox_id: str):
     """Fetch box data from OpenSenseMap API by senseBox ID."""
@@ -20,7 +36,10 @@ async def get_box_data(sensebox_id: str):
 @app.get("/temperature")
 async def get_temperature():
     """Return average temperature from multiple OpenSenseMap sensors."""
-    ids=['5eba5fbad46fb8001b799786', '5c21ff8f919bf8001adf2488', '5ade1acf223bd80019a1011c']
+    raw_ids= os.environ.get("ids", "")
+    ids = [id.strip() for id in raw_ids.split(",") if id.strip()]
+    if not ids:
+        return {"error": "No senseBox IDs configured in environment"}
     # ts=[]
     temperature_avg=0
     count=0
@@ -50,15 +69,23 @@ async def get_temperature():
             #ts.append(latest_value)
             count += 1
         except (KeyError, TypeError) as e:
-            return {"error": str(e)}
+            print(f"Error processing box {id1}: {e}", file=sys.stderr)
+            continue
     if count == 0:
-        return {"error: no temperature found"}
+        return {"error": "no valid temperature data found within the last hour"}
     temperature_avg = temperature_avg / count
+    if temperature_avg < 10:
+        status = "Too Cold"
+    elif temperature_avg < 37:
+        status = "Good"
+    else:
+        status = "Too Hot"
     return {
         #"ts": ts,
-        "temperature": temperature_avg
+        "temperature": temperature_avg,
+        "status": status
     }
 @app.get("/version")
-def get_verstion():
+def get_version():
     """Return API version."""
     return VERSION
