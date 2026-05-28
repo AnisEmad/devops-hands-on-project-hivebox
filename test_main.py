@@ -60,7 +60,7 @@ class TestVersionEndpoint:
 
 class TestTemperatureEndpoint:
     """Tests for the GET /temperature endpoint."""
-
+    # pylint: disable=redefined-outer-name
     # ── happy path ────────────────────────────────────────────────────────────
 
     def test_returns_200_when_sensors_active(
@@ -80,7 +80,7 @@ class TestTemperatureEndpoint:
         side_effects = [make_sensor_data(v, minutes_ago=5) for v in values]
         with patch("main.get_box_data", new=AsyncMock(side_effect=side_effects)):
             response = client.get("/temperature")
-        
+
         body = response.json()
         assert body["temperature"] == 20.0
         assert body["status"] == "Good"
@@ -96,7 +96,7 @@ class TestTemperatureEndpoint:
         ]
         with patch("main.get_box_data", new=AsyncMock(side_effect=data)):
             response = client.get("/temperature")
-            
+
         body = response.json()
         assert body["temperature"] == 15.5
         assert body["status"] == "Good"
@@ -112,7 +112,7 @@ class TestTemperatureEndpoint:
         ]
         with patch("main.get_box_data", new=AsyncMock(side_effect=data)):
             response = client.get("/temperature")
-            
+
         body = response.json()
         assert body["temperature"] == 23.0
         assert body["status"] == "Good"
@@ -184,7 +184,7 @@ class TestTemperatureEndpoint:
         ]
         with patch("main.get_box_data", new=AsyncMock(side_effect=data)):
             response = client.get("/temperature")
-        
+
         body = response.json()
         assert body["temperature"] == 15.0
         assert body["status"] == "Good"
