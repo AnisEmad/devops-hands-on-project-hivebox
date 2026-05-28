@@ -154,6 +154,7 @@ To execute the service locally with your target configurations, create a `.env` 
 ```env
 BASE_URL=[https://api.opensensemap.org/boxes](https://api.opensensemap.org/boxes)
 ids=5eba5fbad46fb8001b799786,5c21ff8f919bf8001adf2488,5ade1acf223bd80019a1011c
+```
 
 #### Integration Testing Framework (`test_integration.py`)
 
