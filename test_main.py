@@ -29,14 +29,15 @@ def make_sensor_data(
 
 @pytest.fixture
 def client():
-    """Create a TestClient, injecting mock env variables for CI."""
-    # Inject fake variables cleanly before importing the app
-    mock_env = {"BASE_URL": "https://fake-api.opensensemap.org", "ids": "box1"}
-
+    """Create a TestClient, injecting required env variables for testing."""
+    # Mock both the base url and a dummy id so the app logic runs smoothly
+    mock_env = {
+        "BASE_URL": "https://fake-api.opensensemap.org",
+        "ids": "box1,box2,box3"
+    }
     with patch.dict(os.environ, mock_env):
         with patch("builtins.print"):
             from main import app  # pylint: disable=import-outside-toplevel
-
     return TestClient(app)
 
 
