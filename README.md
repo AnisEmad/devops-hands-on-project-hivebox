@@ -128,3 +128,29 @@ and weekly on Mondays. Results are uploaded to the GitHub Security → Code Scan
 The CI pipeline spins up the Docker container after a successful build and calls the
 `/version` endpoint via `curl`, asserting the response matches the expected version.
 If the value does not match, the pipeline fails and the container is cleaned up automatically.
+
+### Phase 4: Production Hardening, Environment Configuration & Observability
+
+#### 4.1 Tools & Instrumentation
+- **[python-dotenv](https://pypi.org/project/python-dotenv/)**: Integrated to separate code from secrets, dynamically loading external infrastructure variables from an untracked local `.env` configuration file.
+- **[prometheus-client](https://github.com/prometheus/client_python)**: Integrated standard Cloud Native metrics collection into the microservice layer to expose performance and scraping telemetry.
+
+#### 4.2 Code Enhancements & Features
+
+The `main.py` backend service was updated with the following critical application logic:
+
+- **Dynamic Configurations**: Shifted the `BASE_URL` and target senseBox `ids` string arrays from rigid code constants to secure system-level environment calls using `os.environ.get()`. Added defensive validation checking to throw a `sys.stderr` failure and block application boot sequences if configurations are missing.
+- **Observability Interface (`GET /metrics`)**: Instantiated a Prometheus ASGI application hook and securely mounted it to the `/metrics` endpoint, enabling standard cloud monitoring agents (like Prometheus instances) to pull internal operational data seamlessly.
+- **Enriched API Schema & Status Mapping**: Updated the response model contract on the `/temperature` endpoint. The controller now reads the aggregated sensor readings and applies strict business logic criteria to calculate a status condition string alongside the mathematical float average:
+  - `< 10°C` $\rightarrow$ `"Too Cold"`
+  - `10°C` to `36.99°C` $\rightarrow$ `"Good"`
+  - `≥ 37°C` $\rightarrow$ `"Too Hot"`
+- **Resilient Fault Isolation**: Wrapped the openSenseMap individual station JSON parsing loops in defensive `try/except (KeyError, TypeError)` exception blocks. If an API call to a specific senseBox returns degraded payloads (missing `sensors` or mismatched formats), the anomaly is isolated to `sys.stderr`, a `continue` loop is executed, and the service aggregates the remaining active sensor grids uninterrupted.
+
+#### 4.3 Running & Validating the Application
+
+To execute the service locally with your target configurations, create a `.env` file in the project root folder:
+
+```env
+BASE_URL=[https://api.opensensemap.org/boxes](https://api.opensensemap.org/boxes)
+ids=5eba5fbad46fb8001b799786,5c21ff8f919bf8001adf2488,5ade1acf223bd80019a1011c
