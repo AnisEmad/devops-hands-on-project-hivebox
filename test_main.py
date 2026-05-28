@@ -1,3 +1,4 @@
+# pylint: disable=redefined-outer-name
 """Unit tests for the FastAPI temperature service."""
 import os
 from datetime import datetime, timezone, timedelta
@@ -5,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -27,17 +29,22 @@ def make_sensor_data(
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
-@pytest.fixture
-def client():
-    """Create a TestClient, injecting required env variables for testing."""
-    # Mock both the base url and a dummy id so the app logic runs smoothly
+@pytest.fixture(scope="module", autouse=True)
+def setup_test_environment():
+    """Globally inject required configuration environment variables for testing."""
     mock_env = {
         "BASE_URL": "https://fake-api.opensensemap.org",
         "ids": "box1,box2,box3"
     }
     with patch.dict(os.environ, mock_env):
-        with patch("builtins.print"):
-            from main import app  # pylint: disable=import-outside-toplevel
+        yield
+
+
+@pytest.fixture
+def client():
+    """Create a TestClient, suppressing the print() side-effects."""
+    with patch("builtins.print"):
+        from main import app  # pylint: disable=import-outside-toplevel
     return TestClient(app)
 
 
@@ -46,17 +53,17 @@ def client():
 class TestVersionEndpoint:
     """Tests for the GET /version endpoint."""
 
-    def test_returns_200(self, client):  # pylint: disable=redefined-outer-name
+    def test_returns_200(self, client):
         """Endpoint returns HTTP 200."""
         response = client.get("/version")
         assert response.status_code == 200
 
-    def test_returns_version_string(self, client):  # pylint: disable=redefined-outer-name
+    def test_returns_version_string(self, client):
         """Endpoint returns the version defined in print_version.py."""
         response = client.get("/version")
         assert response.json() == "v0.0.1"
 
-    def test_no_parameters_required(self, client):  # pylint: disable=redefined-outer-name
+    def test_no_parameters_required(self, client):
         """Endpoint must work without any query parameters."""
         response = client.get("/version")
         assert response.status_code == 200
@@ -66,21 +73,17 @@ class TestVersionEndpoint:
 
 class TestTemperatureEndpoint:
     """Tests for the GET /temperature endpoint."""
-    # pylint: disable=redefined-outer-name
+
     # ── happy path ────────────────────────────────────────────────────────────
 
-    def test_returns_200_when_sensors_active(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
+    def test_returns_200_when_sensors_active(self, client):
         """Endpoint returns HTTP 200 when at least one sensor has fresh data."""
         fresh_data = make_sensor_data("20.0", minutes_ago=10)
         with patch("main.get_box_data", new=AsyncMock(return_value=fresh_data)):
             response = client.get("/temperature")
         assert response.status_code == 200
 
-    def test_returns_average_of_three_sensors(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
+    def test_returns_average_of_three_sensors(self, client):
         """Average of 10, 20, 30 should be 20.0 and status should be Good."""
         values = ["10.0", "20.0", "30.0"]
         side_effects = [make_sensor_data(v, minutes_ago=5) for v in values]
@@ -91,9 +94,7 @@ class TestTemperatureEndpoint:
         assert body["temperature"] == 20.0
         assert body["status"] == "Good"
 
-    def test_returns_single_sensor_value(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
+    def test_returns_single_sensor_value(self, client):
         """When only one box has fresh data the value is returned as-is."""
         data = [
             make_sensor_data("15.5", minutes_ago=30),
@@ -107,9 +108,7 @@ class TestTemperatureEndpoint:
         assert body["temperature"] == 15.5
         assert body["status"] == "Good"
 
-    def test_sensor_title_case_insensitive(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
+    def test_sensor_title_case_insensitive(self, client):
         """Sensor matching is case-insensitive ('TEMPERATURE', 'Temperatur', etc.)."""
         data = [
             make_sensor_data("21.0", minutes_ago=5, title="TEMPERATURE"),
@@ -151,9 +150,7 @@ class TestTemperatureEndpoint:
 
     # ── staleness filter ──────────────────────────────────────────────────────
 
-    def test_excludes_measurements_older_than_one_hour(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
+    def test_excludes_measurements_older_than_one_hour(self, client):
         """Measurements older than 60 minutes must not contribute to the average."""
         data = [
             make_sensor_data("100.0", minutes_ago=61),   # stale
@@ -165,9 +162,7 @@ class TestTemperatureEndpoint:
         body = response.json()
         assert "error" in body
 
-    def test_excludes_measurement_exactly_at_one_hour_boundary(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
+    def test_excludes_measurement_exactly_at_one_hour_boundary(self, client):
         """A reading at exactly 60 minutes old is excluded."""
         data = [
             make_sensor_data("18.0", minutes_ago=60),
@@ -179,9 +174,7 @@ class TestTemperatureEndpoint:
         body = response.json()
         assert "error" in body
 
-    def test_mixes_fresh_and_stale_sensors(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
+    def test_mixes_fresh_and_stale_sensors(self, client):
         """Only fresh readings should be averaged; stale ones are silently dropped."""
         data = [
             make_sensor_data("10.0", minutes_ago=5),    # fresh
@@ -197,9 +190,7 @@ class TestTemperatureEndpoint:
 
     # ── error / edge cases ────────────────────────────────────────────────────
 
-    def test_returns_error_when_all_sensors_stale(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
+    def test_returns_error_when_all_sensors_stale(self, client):
         """All stale sensors should result in an error response."""
         stale_data = make_sensor_data("25.0", minutes_ago=120)
         with patch("main.get_box_data", new=AsyncMock(return_value=stale_data)):
@@ -207,9 +198,7 @@ class TestTemperatureEndpoint:
         body = response.json()
         assert "error" in body
 
-    def test_returns_error_when_no_temperature_sensor_found(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
+    def test_returns_error_when_no_temperature_sensor_found(self, client):
         """Boxes with no temperature sensor should be skipped; error if none found."""
         no_temp = {
             "sensors": [
@@ -227,9 +216,7 @@ class TestTemperatureEndpoint:
         body = response.json()
         assert "error" in body
 
-    def test_handles_missing_last_measurement(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
+    def test_handles_missing_last_measurement(self, client):
         """A sensor with no lastMeasurement should not crash the endpoint."""
         bad_data = {"sensors": [{"title": "temperature", "lastMeasurement": None}]}
         with patch("main.get_box_data", new=AsyncMock(return_value=bad_data)):
@@ -237,27 +224,21 @@ class TestTemperatureEndpoint:
         assert response.status_code == 200
         assert "error" in response.json()
 
-    def test_handles_missing_sensors_key(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
-        """A box payload with no 'sensors' key should not raise an unhandled exception."""
+    def test_handles_missing_sensors_key(self, client):
+        """A box payload with no 'sensors' key should not raise an exception."""
         with patch("main.get_box_data", new=AsyncMock(return_value={})):
             response = client.get("/temperature")
         assert response.status_code == 200
         assert "error" in response.json()
 
-    def test_temperature_key_in_successful_response(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
+    def test_temperature_key_in_successful_response(self, client):
         """Successful response must contain a 'temperature' key."""
         fresh = make_sensor_data("22.5", minutes_ago=15)
         with patch("main.get_box_data", new=AsyncMock(return_value=fresh)):
             response = client.get("/temperature")
         assert "temperature" in response.json()
 
-    def test_temperature_value_is_numeric(
-        self, client  # pylint: disable=redefined-outer-name
-    ):
+    def test_temperature_value_is_numeric(self, client):
         """The 'temperature' value in a successful response must be a number."""
         fresh = make_sensor_data("17.3", minutes_ago=20)
         with patch("main.get_box_data", new=AsyncMock(return_value=fresh)):
