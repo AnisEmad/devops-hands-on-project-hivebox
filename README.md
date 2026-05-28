@@ -154,3 +154,30 @@ To execute the service locally with your target configurations, create a `.env` 
 ```env
 BASE_URL=[https://api.opensensemap.org/boxes](https://api.opensensemap.org/boxes)
 ids=5eba5fbad46fb8001b799786,5c21ff8f919bf8001adf2488,5ade1acf223bd80019a1011c
+
+#### Integration Testing Framework (`test_integration.py`)
+
+To ensure complete reliability between the FastAPI application layer, system environments, and real-world network dependencies, a comprehensive integration testing lifecycle was established using two isolated execution profiles:
+
+1. **Direct In-Process Pipeline (`@pytest.mark.direct`)**: 
+   - Fires genuine HTTP network calls directly across the internet to the live `openSenseMap` API servers to assert contract drift protection.
+   - Built with defensive socket-level checks (`_internet_available`) to gracefully bypass tests without failing if the execution host loses network connectivity.
+
+2. **Docker Lifecycle Pipeline (`@pytest.mark.docker`)**:
+   - Programmatically executes a Docker engine build-and-run sequence locally or inside automated worker nodes.
+   - Leverages a custom polling health manager (`_wait_for_http`) to confirm port availability before starting assertions.
+   - Includes advanced resilience checks, verifying structural stability against high-concurrency request floods using multi-threaded execution pools (`ThreadPoolExecutor`).
+
+##### Executing Integration Suites
+
+The test execution suite supports strict filtering using custom `pytest.ini` test flags:
+
+```bash
+# Run the complete test grid (Unit + Integration)
+pytest -v
+
+# Run ONLY direct live-network integration tests
+pytest -v -m direct
+
+# Run ONLY containerized Docker lifecycle tests
+pytest -v -m docker
