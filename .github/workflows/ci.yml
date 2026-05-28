@@ -67,7 +67,7 @@ jobs:
        run: docker build -t hivebox .
  
      - name: Start container
-       run: docker run -d -p 8000:8000 --name hivebox hivebox
+       run: docker run -d -p 8000:8000 -e BASE_URL="https://fake-api.opensensemap.org" -e ids="box1" --name app_test hivebox
  
      - name: Wait for container to be ready
        run: sleep 3
