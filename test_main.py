@@ -1,10 +1,10 @@
 """Unit tests for the FastAPI temperature service."""
+import os
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -28,10 +28,15 @@ def make_sensor_data(
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture
-def client():  # pylint: disable=redefined-outer-name
-    """Create a TestClient, suppressing the print() side-effect in print_version.py."""
-    with patch("builtins.print"):
-        from main import app  # pylint: disable=import-outside-toplevel
+def client():
+    """Create a TestClient, injecting mock env variables for CI."""
+    # Inject fake variables cleanly before importing the app
+    mock_env = {"BASE_URL": "https://fake-api.opensensemap.org", "ids": "box1"}
+
+    with patch.dict(os.environ, mock_env):
+        with patch("builtins.print"):
+            from main import app  # pylint: disable=import-outside-toplevel
+
     return TestClient(app)
 
 
