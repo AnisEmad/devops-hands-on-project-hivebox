@@ -182,3 +182,25 @@ pytest -v -m direct
 
 # Run ONLY containerized Docker lifecycle tests
 pytest -v -m docker
+```
+#### Container Infrastructure (KIND & Ingress)
+
+To fulfill the local orchestration requirements, a local Kubernetes development cluster was provisioned using **KIND (Kubernetes in Docker)** along with an **Ingress-Nginx** entry gateway:
+
+- **KIND Configuration (`kind-config.yaml`)**: Implemented a single-node cluster blueprint that maps host ports `80` (HTTP) and `443` (HTTPS) from your local Debian machine straight into the cluster's network layer. It also injects an `ingress-ready=true` label onto the control-plane node.
+- **Ingress Controller**: Deployed the official Ingress-Nginx controller manifest tailored for KIND. This spins up an internal reverse proxy that binds to those forwarded ports, acting as the single front door for external traffic entering the cluster.
+
+##### Cluster Management Runbook
+
+```bash
+# Provision the local cluster using the custom port-mapping layout
+kind create cluster --config kind-config.yaml --name hivebox-cluster
+
+# Deploy the Ingress-Nginx edge routing controller
+kubectl apply -f [https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml](https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml)
+
+# Block until the ingress-nginx controller pod is fully 1/1 READY
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=300s
