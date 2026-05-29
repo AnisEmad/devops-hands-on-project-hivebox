@@ -231,3 +231,24 @@ kubectl apply -f ingress.yaml
 # Verify production gateway routing functionality directly
 curl -i http://localhost/temperature
 ```
+#### 4.4 Continuous Integration - Quality Gates & Pipeline Optimization
+
+The GitHub Actions automated workflow (`.github/workflows/ci.yaml`) was hardened and optimized to decouple unit-level assertions from external runtime contracts, establishing an efficient, high-fidelity delivery pipeline.
+
+##### Key Pipeline Enhancements & Trigger Controls:
+
+1. **Resource & Compute Optimization (`paths-ignore`)**:
+   - Implemented declarative file-path filtering rules on both `push` and `pull_request` event streams targeting the `main` branch. 
+   - If a commit introduces modifications exclusively to documentation boundaries (such as `README.md` or markdown files), the entire pipeline execution is safely bypassed, conserving runner cycles and preventing redundant workflows.
+
+2. **Static Analysis Expansion (Lint Matrix Integration)**:
+   - Appended `test_integration.py` to the core static compliance matrix inside the `lint` job block.
+   - This ensures that all custom integration frameworks are continuously parsed via `pylint` alongside production application code, enforcing strict PEP 8 formatting, syntactic structure, and clean coding standards before code execution.
+
+3. **Decoupled Quality Gates (`integration-test` Job)**:
+   - Instantiated a dedicated `integration-test` workflow job configured to run sequentially after `Unit Tests` complete successfully, but prior to final immutable image compilation.
+   - **Isolating Direct Contract Validation**: To prevent execution redundancy with the subsequent `build` container checks, the integration step uses explicit pytest runtime filter flags (`pytest test_integration.py -v -m direct`). This isolates testing strictly to out-of-process, live-network payload contract verification against the third-party openSenseMap API.
+   - Leverages built-in socket verification fallbacks to ensure external network flakiness or remote rate limits do not disrupt local pipeline execution integrity.
+
+##### Active Sequential Pipeline Flow Control:
+`Lint (Pylint + Hadolint)` ➔ `Unit Tests (Pytest)` ➔ `Integration Tests (Pytest -m direct)` ➔ `Build & Verify Docker Container`
