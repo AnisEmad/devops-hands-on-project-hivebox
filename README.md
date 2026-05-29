@@ -204,3 +204,30 @@ kubectl wait --namespace ingress-nginx \
   --for=condition=ready pod \
   --selector=app.kubernetes.io/component=controller \
   --timeout=300s
+```
+
+##### Containers - Core Declarative Manifests
+
+To manage the application lifecycle and routing layers inside the cluster, declarative manifests were implemented under the `k8s/` directory:
+
+- **Deployment (`deployment.yaml`)**: Spawns a high-availability layout maintaining `2` application replicas running the `hivebox-app:latest` runtime engine. It safely injects required system environments (`BASE_URL`, `ids`) directly into the container spaces.
+- **Service (`service.yaml`)**: Exposes a stable internal cluster layer (`ClusterIP`) acting as an internal load balancer pointing to target container port `8000`.
+- **Ingress (`ingress.yaml`)**: Maps specific routing rules into the `nginx` controller class. It directs external host interface requests hitting `/temperature` and `/metrics` paths straight into the internal service layer on port `80`.
+
+##### Application Deployment Runbook
+
+```bash
+# Navigate to the manifests directory
+cd k8s/
+
+# Sideload your locally compiled application image into the KIND node context
+kind load docker-image hivebox-app:latest --name hivebox-cluster
+
+# Apply the declarative runtime, networking, and edge-proxy specs
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+kubectl apply -f ingress.yaml
+
+# Verify production gateway routing functionality directly
+curl -i http://localhost/temperature
+```
