@@ -252,3 +252,27 @@ The GitHub Actions automated workflow (`.github/workflows/ci.yaml`) was hardened
 
 ##### Active Sequential Pipeline Flow Control:
 `Lint (Pylint + Hadolint)` ➔ `Unit Tests (Pytest)` ➔ `Integration Tests (Pytest -m direct)` ➔ `Build & Verify Docker Container`
+
+#### 4.5 DevSecOps: Static Application Security Testing (SAST) & Automated Governance
+
+To shift security and code quality safeguards "left" in the Software Development Life Cycle (SDLC), a dual-layered automated compliance matrix was integrated into the CI pipeline via **Semgrep** and **SonarCloud**. This ensures no high-severity vulnerabilities or degraded structural code mechanics reach production.
+
+##### Architectural Separation of Concerns ("The Why"):
+
+1. **Vulnerability Auditing via Semgrep (SAST)**:
+   - **Mechanism**: Executes semantic pattern-matching analysis using dedicated semantic security rulesets (`p/python`, `p/owasp-top-10`, and `p/dockerfile`).
+   - **Reasoning**: Unlike basic line-by-line regex engines, Semgrep evaluates actual abstract syntax trees (AST) to understand code logic contextually. It screens specifically for structural hazards, injection vector entry points, insecure base images, and hidden configuration anti-patterns inside the codebase instantly without external runtime network dependencies.
+
+2. **Quality Gate Compliance via SonarCloud**:
+   - **Mechanism**: Driven by a localized root configuration file (`sonar-project.properties`), this job evaluates the structural integrity of the application, tracking metrics like code complexity, code smells, duplication ratios, and technical debt.
+   - **Reasoning**: It applies strict automated governance. By linking the pipeline to an explicit **SonarQube Quality Gate Check**, GitHub Actions programmatically blocks the pull request merge button if newly introduced code breaches baseline requirements (e.g., any security hotspots, new bugs, or insufficient test parsing). Deep Git history analysis (`fetch-depth: 0`) is enforced to enable accurate blame-mapping metrics.
+
+##### Project Configuration Architecture (`sonar-project.properties`):
+```properties
+sonar.host.url=[https://sonarcloud.io](https://sonarcloud.io)
+sonar.sources=.
+sonar.exclusions=**/test_*.py,**/*.md,k8s/**,pr_description.md
+sonar.tests=.
+sonar.test.inclusions=**/test_*.py
+sonar.python.version=3.13
+```

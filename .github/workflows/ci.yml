@@ -31,7 +31,6 @@ jobs:
           pip install -r requirements.txt
           pip install pylint
  
-      # Expanded to lint your new integration test files alongside source files
       - name: Run pylint
         run: pylint main.py print_version.py test_main.py test_integration.py
  
@@ -43,7 +42,23 @@ jobs:
  
       - name: Run hadolint
         run: hadolint Dockerfile
- 
+
+  security-sast:
+    name: Security Scan (Semgrep)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6.0.2
+
+      - name: Run Semgrep SAST Rules
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/python
+            p/owasp-top-10
+            p/dockerfile
+
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -76,18 +91,39 @@ jobs:
         with:
           python-version: "3.13"
 
-      # Ubuntu runners include the Docker daemon out-of-the-box, 
-      # satisfying your programmatic programmatic '@pytest.mark.docker' requirements.
       - name: Install dependencies
         run: pip install -r requirements.txt pytest
 
-      - name: Run complete integration test grid
+      - name: Run live-network contract integration tests
         run: pytest test_integration.py -v -m direct
+
+  sonar-quality-gate:
+    name: SonarQube Code Quality Gate
+    runs-on: ubuntu-latest
+    needs: [test, security-sast]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0 # Shallow clones must be disabled for deep Git blame history analysis
+
+      - name: Execute SonarQube Scan Analyzer
+        uses: sonarsource/sonarcloud-github-action@v3.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # Explicitly satisfies the project hint rule to check Quality Gate status
+      - name: Enforce SonarQube Quality Gate Check
+        uses: sonarsource/sonarcloud-quality-gate-action@v1.3.0
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   build:
    name: Build Docker Image
    runs-on: ubuntu-latest
-   needs: integration-test
+   needs: [integration-test, sonar-quality-gate]
    steps:
      - name: Checkout code
        uses: actions/checkout@v6.0.2
