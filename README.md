@@ -290,3 +290,19 @@ To extend automated governance past application logic and straight into the orch
   - **Container Root Privileges**: Ensuring pods do not execute with elevated root bypass modes (`privileged: true`).
   - **Resource Exhaustion Vectors**: Requiring explicit, deterministic CPU and memory request/limit definitions to prevent local cluster Denial of Service (DoS) conditions.
   - **Insecure System Capabilities**: Isolating Linux kernels and locking down container filesystems cleanly.
+
+  #### 4.7 Continuous Delivery & Automated Image Release (GHCR)
+
+To automate artifact distribution and complete the deployment lifecycle, a **Continuous Delivery (CD)** engine was established via a dedicated `.github/workflows/cd.yaml` pipeline. This architecture abstracts container distribution by compiling and shipping production-ready application layers directly to the **GitHub Container Registry (GHCR)** the exact moment code passes governance and hits the `main` branch.
+
+##### Architectural Separation of Concerns ("The Why"):
+
+- **Mechanism**: The deployment workflow runs completely decoupled from standard pull-request code validation. It leverages native GitHub platform security attributes (`packages: write`) to securely authenticate against `ghcr.io` via the ephemeral `secrets.GITHUB_TOKEN`. This eliminates the need to generate or rotate high-risk, long-lived external registry credential secrets.
+- **Reasoning**: It ensures that only hardened, fully compliant code is compiled into an immutable deployment unit. The tracking architecture enforces a **Dual-Tagging Versioning Strategy** using `docker/metadata-action`:
+  - **`:latest`**: A floating target pointer that tracks the most current stable build for general delivery.
+  - **`:sha-<short-sha>`**: An immutable, unique version snapshot corresponding to the precise 7-character Git commit hash that spawned the release. This ensures absolute supply-chain transparency, allowing engineers to track production cluster errors straight back to the exact code change that caused them.
+- **Optimization**: Integrates advanced Docker Buildx cache engines (`cache-from: type=gha`, `cache-to: type=gha,mode=max`). This drastically optimizes compilation speeds on subsequent pushes by utilizing background GitHub virtual networks to store and reuse unchanged container layers.
+
+##### Complete Multi-Workflow Execution Lifecycle:
+- **Pull Request Gate (CI Pipeline)**: `Lint` ➔ `Unit Tests` || `Semgrep SAST` || `Terrascan IaC` ➔ `Integration Tests` || `SonarQube Gate` ➔ *Merge Approval*
+- **Production Deployment (CD Pipeline)**: *Code Merged to Main* ➔ `Buildx Init` ➔ `GHCR Auth` ➔ `Dual-Tag Versioning Compilation` ➔ `Secure Registry Push`
