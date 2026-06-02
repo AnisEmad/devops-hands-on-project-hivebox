@@ -96,7 +96,13 @@ jobs:
         
  
       - name: Run tests
-        run: pytest test_main.py -v
+        run: pytest test_main.py --cov=. --cov-report=xml -v
+      
+      - name: Upload Coverage Report Asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage-matrix
+          path: coverage.xml
 
   integration-test:
     name: Integration Tests
@@ -126,6 +132,11 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0 # Shallow clones must be disabled for deep Git blame history analysis
+
+      - name: Download Coverage Report Asset
+        uses: actions/download-artifact@v4
+        with:
+          name: code-coverage-matrix
 
       - name: Execute SonarQube Scan Analyzer
         uses: sonarsource/sonarcloud-github-action@v3
