@@ -28,8 +28,8 @@ jobs:
  
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install pylint
+          pip install --only-binary ':all:' -r requirements.txt
+          pip install --only-binary ':all:' pylint
  
       - name: Run pylint
         run: pylint main.py print_version.py test_main.py test_integration.py
@@ -91,7 +91,9 @@ jobs:
           python-version: "3.13"
  
       - name: Install dependencies
-        run: pip install -r requirements.txt pytest
+        run: |
+          pip install --only-binary ':all:' -r requirements.txt pytest
+        
  
       - name: Run tests
         run: pytest test_main.py -v
@@ -110,7 +112,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt pytest
+        run: pip install --only-binary ':all:' -r requirements.txt pytest
 
       - name: Run live-network contract integration tests
         run: pytest test_integration.py -v -m direct
