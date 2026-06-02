@@ -113,9 +113,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      # Explicitly satisfies the project hint rule to check Quality Gate status
+      # Fixed: Changed "sonarcloud" to "sonarqube" in the repository name
       - name: Enforce SonarQube Quality Gate Check
-        uses: sonarsource/sonarcloud-quality-gate-action@v1.3.0
+        uses: sonarsource/sonarqube-quality-gate-action@v1
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
