@@ -10,7 +10,7 @@ COPY requirements.txt .
 RUN pip install --only-binary :all: --no-cache-dir -r requirements.txt
 
 # Copy source code and explicitly change ownership to the appuser
-COPY --chown=appuser:appuser main.py print_version.py ./
+COPY --chown=appuser:appuser --chmod=0555 main.py print_version.py ./
 
 EXPOSE 8000
 
