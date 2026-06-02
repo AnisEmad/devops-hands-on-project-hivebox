@@ -59,7 +59,7 @@ async def get_temperature():
             time_value = datetime.fromisoformat(time.replace("Z", "+00:00"))
             now = datetime.now(timezone.utc)
 
-            if not (now - time_value) <= timedelta(hours=1):
+            if (now - time_value) > timedelta(hours=1):
                 continue
             latest_value = float(
                 temperature[0]["lastMeasurement"]["value"]
