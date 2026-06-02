@@ -121,7 +121,7 @@ jobs:
         run: pip install --only-binary ':all:' -r requirements.txt pytest
 
       - name: Run live-network contract integration tests
-        run: pytest test_integration.py -v -m direct
+        run: pytest test_integration.py -v -m direct --no-cov
 
   sonar-quality-gate:
     name: SonarQube Code Quality Gate
