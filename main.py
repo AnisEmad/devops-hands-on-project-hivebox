@@ -40,7 +40,6 @@ async def get_temperature():
     ids = [id.strip() for id in raw_ids.split(",") if id.strip()]
     if not ids:
         return {"error": "No senseBox IDs configured in environment"}
-    # ts=[]
     temperature_avg=0
     count=0
     for id1 in ids:
