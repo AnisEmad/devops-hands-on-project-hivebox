@@ -250,8 +250,11 @@ The GitHub Actions automated workflow (`.github/workflows/ci.yaml`) was hardened
    - **Isolating Direct Contract Validation**: To prevent execution redundancy with the subsequent `build` container checks, the integration step uses explicit pytest runtime filter flags (`pytest test_integration.py -v -m direct`). This isolates testing strictly to out-of-process, live-network payload contract verification against the third-party openSenseMap API.
    - Leverages built-in socket verification fallbacks to ensure external network flakiness or remote rate limits do not disrupt local pipeline execution integrity.
 
-##### Active Sequential Pipeline Flow Control:
-`Lint (Pylint + Hadolint)` ➔ `Unit Tests (Pytest)` ➔ `Integration Tests (Pytest -m direct)` ➔ `Build & Verify Docker Container`
+##### Active Parallel Pipeline Flow Control Hierarchy:
+1. **Static Stage**: `Lint (Pylint + Hadolint)`
+2. **Parallel Analysis Matrix**: `Unit Tests (Pytest)` || `Security Scan (Semgrep SAST)` || `IaC Security (Terrascan)`
+3. **Parallel Verification Gates**: `Integration Tests (Pytest -m direct)` || `SonarQube Code Quality Gate`
+4. **Delivery Target**: `Build & Verify Production Docker Image`
 
 #### 4.5 DevSecOps: Static Application Security Testing (SAST) & Automated Governance
 
@@ -276,3 +279,14 @@ sonar.tests=.
 sonar.test.inclusions=**/test_*.py
 sonar.python.version=3.13
 ```
+#### 4.6 Infrastructure as Code (IaC) Security Guardrails (Terrascan)
+
+To extend automated governance past application logic and straight into the orchestration layer, an Infrastructure as Code (IaC) security scanner was established via **Terrascan** (`tenable/terrascan-action`). This gate enforces security compliance across all declarative Kubernetes manifests stored inside the `k8s/` directory before they are allowed to interact with cluster runtimes.
+
+##### Architectural Separation of Concerns ("The Why"):
+
+- **Mechanism**: Terrascan leverages the **Open Policy Agent (OPA)** engine backend to execute static code evaluations using structured **Rego** policy definitions. It contextually parses the structural syntax layouts of your `deployment.yaml`, `service.yaml`, and `ingress.yaml` manifests.
+- **Reasoning**: It prevents infrastructure vulnerabilities and deployment drifts from ever reaching production. By executing this scan in parallel with unit testing, the pipeline evaluates manifests against hundreds of out-of-the-box policies mapped directly to the CIS Kubernetes Benchmarks. It explicitly scans for and blocks structural hazards such as:
+  - **Container Root Privileges**: Ensuring pods do not execute with elevated root bypass modes (`privileged: true`).
+  - **Resource Exhaustion Vectors**: Requiring explicit, deterministic CPU and memory request/limit definitions to prevent local cluster Denial of Service (DoS) conditions.
+  - **Insecure System Capabilities**: Isolating Linux kernels and locking down container filesystems cleanly.
