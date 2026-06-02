@@ -45,7 +45,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ id.meta.outputs.tags }}
-          labels: ${{ id.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha # Speeds up builds by utilizing GitHub Actions background cache caches
           cache-to: type=gha,mode=max
